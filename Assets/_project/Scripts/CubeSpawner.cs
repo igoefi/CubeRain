@@ -1,34 +1,34 @@
+using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
+using Random = UnityEngine.Random;
 
-public class CubeSpawner : MonoBehaviour
+public class CubeSpawner : Spawner<FallenCube>
 {
-    [SerializeField] private FallenCube _cubePrefab;
+    public Action<Transform> OnReleasedCube;
+    
     [SerializeField] private Transform _firstSpawnPointBorder;
     [SerializeField] private Transform _secondSpawnPointBorder;
+    [SerializeField] private float _spawnPerTime;
 
-    private ObjectPool<FallenCube> _pool;
-
+    private WaitForSeconds _waitSpawn;
+    
     private void Start()
     {
-        _pool = new(
-            CreateCube,
-            OnGetFromPool,
-            OnRealesedToPool,
-            (FallenCube cube) => Destroy(cube.gameObject),
-            false, 2, 2);
-
-        _pool.Get();
+        CreatePool();
+        _waitSpawn = new WaitForSeconds(_spawnPerTime);
+        StartCoroutine(Spawn());
     }
 
-    private FallenCube CreateCube()
-    {
-        var cube = Instantiate(_cubePrefab);
+    protected override FallenCube Create()
+    { 
+        FallenCube cube = Instantiate(_prefab);
         cube.SetPool(_pool);
         return cube;
     }
 
-    private void OnGetFromPool(FallenCube cube)
+    protected override void OnGetFromPool(FallenCube cube)
     {
         var position = new Vector3(
             Random.Range(_firstSpawnPointBorder.position.x, _secondSpawnPointBorder.position.x),
@@ -38,9 +38,23 @@ public class CubeSpawner : MonoBehaviour
         cube.gameObject.SetActive(true);
     }
 
-    private void OnRealesedToPool(FallenCube cube)
+    protected override void OnRealesedToPool(FallenCube cube)
     {
+        OnReleasedCube?.Invoke(cube.transform);
         cube.gameObject.SetActive(false);
-        _pool.Get();
+    }
+
+    protected override void OnDestroyObject(FallenCube cube)
+    {
+        Destroy(cube.gameObject);
+    }
+
+    private IEnumerator Spawn()
+    {
+        while (enabled)
+        {
+            _pool.Get();
+            yield return _waitSpawn;
+        }
     }
 }
