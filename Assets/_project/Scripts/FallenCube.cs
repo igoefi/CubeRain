@@ -1,24 +1,29 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
+using Random = UnityEngine.Random;
 
+[RequireComponent(typeof(MeshRenderer))]
 public class FallenCube : MonoBehaviour
 {
     [SerializeField] private float _minDeathTime = 2;
     [SerializeField] private float _maxDeathTime = 5;
-
-    private ObjectPool<FallenCube> _pool;
+    [SerializeField] private LayerMask _ignoreLayers;
+    
     private MeshRenderer _mesh;
     private bool _isFirstCollision = true;
+
+    public event Action<FallenCube> CubeDeaded;
 
     private void Start() =>
         _mesh = GetComponent<MeshRenderer>();
 
-    public void SetPool(ObjectPool<FallenCube> pool) =>
-        _pool = pool;
-
     private void OnCollisionEnter(Collision collision)
     {
+        if((_ignoreLayers.value & (1 << collision.gameObject.layer)) != 0)
+            return;
+        
         if (_isFirstCollision)
         {
             _isFirstCollision = false;
@@ -35,6 +40,6 @@ public class FallenCube : MonoBehaviour
 
         _mesh.material.color = Color.white;
         _isFirstCollision = true;
-        _pool.Release(this);
+        CubeDeaded?.Invoke(this);
     }
 }

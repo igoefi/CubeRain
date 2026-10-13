@@ -6,15 +6,15 @@ using Random = UnityEngine.Random;
 
 public class CubeSpawner : Spawner<FallenCube>
 {
-    public Action<Transform> OnReleasedCube;
-    
     [SerializeField] private Transform _firstSpawnPointBorder;
     [SerializeField] private Transform _secondSpawnPointBorder;
     [SerializeField] private float _spawnPerTime;
 
     private WaitForSeconds _waitSpawn;
     
-    private void Start()
+    public event Action<Transform> CubeReleased;
+    
+    private void Awake()
     {
         CreatePool();
         _waitSpawn = new WaitForSeconds(_spawnPerTime);
@@ -23,37 +23,40 @@ public class CubeSpawner : Spawner<FallenCube>
 
     protected override FallenCube Create()
     { 
-        FallenCube cube = Instantiate(_prefab);
-        cube.SetPool(_pool);
+        CountCreateObjects++;
+        FallenCube cube = Instantiate(Prefab);
         return cube;
     }
 
-    protected override void OnGetFromPool(FallenCube cube)
+    protected override void OnGetFromPool(FallenCube obj)
     {
+        CountSpawnObjects++;
         var position = new Vector3(
             Random.Range(_firstSpawnPointBorder.position.x, _secondSpawnPointBorder.position.x),
             _firstSpawnPointBorder.position.y,
             _firstSpawnPointBorder.position.z);
-        cube.transform.position = position;
-        cube.gameObject.SetActive(true);
+        obj.transform.position = position;
+        obj.CubeDeaded += ReleaseObject;
+        obj.gameObject.SetActive(true);
     }
 
-    protected override void OnRealesedToPool(FallenCube cube)
+    protected override void OnRealesedToPool(FallenCube obj)
     {
-        OnReleasedCube?.Invoke(cube.transform);
-        cube.gameObject.SetActive(false);
+        CubeReleased?.Invoke(obj.transform);
+        obj.CubeDeaded -= ReleaseObject;
+        obj.gameObject.SetActive(false);
     }
 
-    protected override void OnDestroyObject(FallenCube cube)
+    protected override void OnDestroyObject(FallenCube obj)
     {
-        Destroy(cube.gameObject);
+        Destroy(obj.gameObject);
     }
 
     private IEnumerator Spawn()
     {
         while (enabled)
         {
-            _pool.Get();
+            Pool.Get();
             yield return _waitSpawn;
         }
     }

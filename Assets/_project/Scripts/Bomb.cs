@@ -1,6 +1,8 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Pool;
+using Random = UnityEngine.Random;
 
 [RequireComponent(typeof(MeshRenderer), typeof(Rigidbody))]
 public class Bomb : MonoBehaviour
@@ -13,20 +15,16 @@ public class Bomb : MonoBehaviour
     [SerializeField] private float _explosionForse;
     [SerializeField] private float _explosionRadius;
     
-    private ObjectPool<Bomb> _pool;
     private MeshRenderer _meshRenderer;
-    private Rigidbody _body;
     private WaitForSeconds _fadeWait;
+
+    public event Action<Bomb> BombExploded;
     
     private void Awake()
     {
         _meshRenderer = GetComponent<MeshRenderer>();
-        _body = GetComponent<Rigidbody>();
         _fadeWait = new WaitForSeconds(_fadePerTime);
     }
-
-    public void SetPool(ObjectPool<Bomb> pool) =>
-        _pool = pool;
     
     public void StartFading()
     {
@@ -36,7 +34,7 @@ public class Bomb : MonoBehaviour
         StartCoroutine(FadeUntilExplosion(Random.Range(_minDeathTime, _maxDeathTime)));
     }
 
-    private void ExplosionAndRelease()
+    private void Explosion()
     {
         Vector3 position = transform.position;
         RaycastHit[] casts = Physics.SphereCastAll(position,
@@ -52,7 +50,7 @@ public class Bomb : MonoBehaviour
                 cast.rigidbody.AddForce(direction, ForceMode.Impulse);
         }
 
-        _pool.Release(this);
+        BombExploded?.Invoke(this);
     }
 
     private IEnumerator FadeUntilExplosion(float time)
@@ -69,6 +67,6 @@ public class Bomb : MonoBehaviour
                 new Color(color.r, color.g, color.b, 1 - nowTime / time);
         }
         
-        ExplosionAndRelease();
+        Explosion();
     }
 }
